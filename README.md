@@ -10,10 +10,10 @@ Light hexagonal layout under `src/`:
 
 ```
 src/
-  domain/            # entities, value objects, errors, ports
-  application/       # use cases
-  infrastructure/    # persistence, payment client, config
-  presentation/      # controllers, DTOs (thin HTTP layer)
+  domain/            # entities, ports, Result/ROP errors, money helpers
+  application/       # use cases + validation
+  infrastructure/    # persistence (pg), fees config, payment (later)
+  presentation/      # controllers, DTOs, HTTP mapping
 ```
 
 Controllers stay thin. Use cases own the flow. Adapters talk to the DB and the payment provider.
@@ -82,8 +82,46 @@ npm run start:dev
 - API: `http://localhost:3000`
 - Health: `http://localhost:3000/health`
 
+## Core API (current)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | Liveness |
+| GET | `/products` | List products + stock |
+| GET | `/products/:id` | Product by id |
+| POST | `/customers` | Upsert customer by email |
+| POST | `/deliveries` | Create delivery for a customer |
+| POST | `/transactions` | Create `PENDING` transaction (server-side totals) |
+| GET | `/transactions/:id` | Transaction status (refresh recovery) |
+
+Fees (`BASE_FEE`, `DELIVERY_FEE`) are applied only on the server. Stock is checked on `POST /transactions` but **not** decremented until a later pay flow.
+
+### curl examples
+
+```bash
+# List products
+curl -s http://localhost:3000/products | jq
+
+# Upsert customer
+curl -s -X POST http://localhost:3000/customers \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"buyer@example.com","fullName":"Ada Buyer","phone":"3001234567"}' | jq
+
+# Create delivery (use customer id from previous response)
+curl -s -X POST http://localhost:3000/deliveries \
+  -H 'Content-Type: application/json' \
+  -d '{"customerId":"<CUSTOMER_UUID>","address":"Calle 1 #2-3","city":"Bogota","region":"Cundinamarca","postalCode":"110111"}' | jq
+
+# Create PENDING transaction
+curl -s -X POST http://localhost:3000/transactions \
+  -H 'Content-Type: application/json' \
+  -d '{"productId":"<PRODUCT_UUID>","customerId":"<CUSTOMER_UUID>","deliveryId":"<DELIVERY_UUID>","quantity":1}' | jq
+```
+
 ## Status
 
 Phase 0 done: scaffold, migrations, env example, agreed fees.
 
-Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok" }`. No business endpoints yet.
+Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok" }`.
+
+Phase core-api (`feature/be-core-api`): products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases.

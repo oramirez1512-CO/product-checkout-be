@@ -1,6 +1,23 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import {
+  CreateDeliveryUseCase,
+  UpsertCustomerUseCase,
+} from './application/use-cases/checkout.use-cases';
+import {
+  GetProductUseCase,
+  ListProductsUseCase,
+} from './application/use-cases/products.use-cases';
+import {
+  CreatePendingTransactionUseCase,
+  GetTransactionUseCase,
+} from './application/use-cases/transactions.use-cases';
+import { feesConfigProvider } from './infrastructure/config/fees';
+import { persistenceProviders } from './infrastructure/persistence/postgres';
+import { CheckoutController } from './presentation/controllers/checkout.controller';
 import { HealthController } from './presentation/controllers/health.controller';
+import { ProductsController } from './presentation/controllers/products.controller';
+import { TransactionsController } from './presentation/controllers/transactions.controller';
 
 @Module({
   imports: [
@@ -8,6 +25,21 @@ import { HealthController } from './presentation/controllers/health.controller';
       isGlobal: true,
     }),
   ],
-  controllers: [HealthController],
+  controllers: [
+    HealthController,
+    ProductsController,
+    CheckoutController,
+    TransactionsController,
+  ],
+  providers: [
+    ...persistenceProviders,
+    feesConfigProvider(),
+    ListProductsUseCase,
+    GetProductUseCase,
+    UpsertCustomerUseCase,
+    CreateDeliveryUseCase,
+    CreatePendingTransactionUseCase,
+    GetTransactionUseCase,
+  ],
 })
 export class AppModule {}
