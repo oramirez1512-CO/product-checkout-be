@@ -19,6 +19,15 @@ export type CreateDeliveryBodyDto = {
   postalCode?: string | null;
 };
 
+export type PayTransactionBodyDto = {
+  number: string;
+  cvc: string;
+  expMonth: string;
+  expYear: string;
+  cardHolder: string;
+  installments?: number;
+};
+
 export type CreateTransactionBodyDto = {
   productId: string;
   customerId: string;
@@ -71,5 +80,8 @@ export function toTransactionResponse(transaction: Transaction) {
     deliveryFee: transaction.deliveryFee,
     total: transaction.total,
     currency: transaction.currency,
+    providerTransactionId: transaction.providerTransactionId,
+    cardBrand: transaction.cardBrand,
+    cardLastFour: transaction.cardLastFour,
   };
 }

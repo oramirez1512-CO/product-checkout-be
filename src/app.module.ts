@@ -12,6 +12,7 @@ import {
 import {
   CreatePendingTransactionUseCase,
   GetTransactionUseCase,
+  PayTransactionUseCase,
 } from './application/use-cases/transactions.use-cases';
 import { feesConfigProvider } from './infrastructure/config/fees';
 import { paymentProviders } from './infrastructure/payment/payment.providers';
@@ -44,6 +45,7 @@ import { TransactionsController } from './presentation/controllers/transactions.
     UpsertCustomerUseCase,
     CreateDeliveryUseCase,
     CreatePendingTransactionUseCase,
+    PayTransactionUseCase,
     GetTransactionUseCase,
   ],
 })
