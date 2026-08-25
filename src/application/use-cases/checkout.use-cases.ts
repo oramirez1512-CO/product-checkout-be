@@ -7,7 +7,13 @@ import {
   DeliveryRepository,
 } from '../../domain/ports';
 import { DomainError, err, ok, Result } from '../../domain/result';
-import { isUuid, isValidEmail, normalizeEmail } from '../validation';
+import {
+  isValidEmail,
+  normalizeEmail,
+  optionalTrim,
+  requireNonEmpty,
+  requireUuid,
+} from '../validation';
 
 export type UpsertCustomerCommand = {
   email: string;
@@ -32,19 +38,19 @@ export class UpsertCustomerUseCase {
 
   async execute(command: UpsertCustomerCommand): Promise<Result<Customer>> {
     const email = normalizeEmail(command.email ?? '');
-    const fullName = command.fullName?.trim() ?? '';
-    const phone = command.phone?.trim() || null;
+    const fullNameResult = requireNonEmpty(command.fullName, 'fullName');
+    if (!fullNameResult.ok) {
+      return fullNameResult;
+    }
+    const phone = optionalTrim(command.phone);
 
     if (!email || !isValidEmail(email)) {
       return err(DomainError.validation('a valid email is required'));
     }
-    if (!fullName) {
-      return err(DomainError.validation('fullName is required'));
-    }
 
     const customer = await this.customers.upsertByEmail({
       email,
-      fullName,
+      fullName: fullNameResult.value,
       phone,
     });
 
@@ -62,36 +68,35 @@ export class CreateDeliveryUseCase {
   ) {}
 
   async execute(command: CreateDeliveryCommand): Promise<Result<Delivery>> {
-    if (!isUuid(command.customerId)) {
-      return err(DomainError.validation('customerId must be a valid UUID'));
+    const customerIdResult = requireUuid(command.customerId, 'customerId');
+    if (!customerIdResult.ok) {
+      return customerIdResult;
     }
 
-    const address = command.address?.trim() ?? '';
-    const city = command.city?.trim() ?? '';
-    const region = command.region?.trim() ?? '';
-    const postalCode = command.postalCode?.trim() || null;
-
-    if (!address) {
-      return err(DomainError.validation('address is required'));
+    const addressResult = requireNonEmpty(command.address, 'address');
+    if (!addressResult.ok) {
+      return addressResult;
     }
-    if (!city) {
-      return err(DomainError.validation('city is required'));
+    const cityResult = requireNonEmpty(command.city, 'city');
+    if (!cityResult.ok) {
+      return cityResult;
     }
-    if (!region) {
-      return err(DomainError.validation('region is required'));
+    const regionResult = requireNonEmpty(command.region, 'region');
+    if (!regionResult.ok) {
+      return regionResult;
     }
 
-    const customer = await this.customers.findById(command.customerId);
+    const customer = await this.customers.findById(customerIdResult.value);
     if (!customer) {
       return err(DomainError.notFound('customer not found'));
     }
 
     const delivery = await this.deliveries.create({
-      customerId: command.customerId,
-      address,
-      city,
-      region,
-      postalCode,
+      customerId: customerIdResult.value,
+      address: addressResult.value,
+      city: cityResult.value,
+      region: regionResult.value,
+      postalCode: optionalTrim(command.postalCode),
     });
 
     return ok(delivery);

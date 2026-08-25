@@ -96,27 +96,15 @@ npm run start:dev
 
 Fees (`BASE_FEE`, `DELIVERY_FEE`) are applied only on the server. Stock is checked on `POST /transactions` but **not** decremented until a later pay flow.
 
-### curl examples
+## Docs
 
-```bash
-# List products
-curl -s http://localhost:3000/products | jq
+API examples live under `docs/`:
 
-# Upsert customer
-curl -s -X POST http://localhost:3000/customers \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"buyer@example.com","fullName":"Ada Buyer","phone":"3001234567"}' | jq
+| File | Description |
+|------|-------------|
+| [`docs/product-checkout-be.postman_collection.json`](docs/product-checkout-be.postman_collection.json) | Postman collection (health, products, customers, deliveries, transactions) |
 
-# Create delivery (use customer id from previous response)
-curl -s -X POST http://localhost:3000/deliveries \
-  -H 'Content-Type: application/json' \
-  -d '{"customerId":"<CUSTOMER_UUID>","address":"Calle 1 #2-3","city":"Bogota","region":"Cundinamarca","postalCode":"110111"}' | jq
-
-# Create PENDING transaction
-curl -s -X POST http://localhost:3000/transactions \
-  -H 'Content-Type: application/json' \
-  -d '{"productId":"<PRODUCT_UUID>","customerId":"<CUSTOMER_UUID>","deliveryId":"<DELIVERY_UUID>","quantity":1}' | jq
-```
+Import the JSON in Postman (**Import → Upload Files**). Collection variables: `baseUrl` (default `http://localhost:3000`), `productId`, `customerId`, `deliveryId`, `transactionId`. Run requests in order; tests scripts fill the ids when possible.
 
 ## Status
 

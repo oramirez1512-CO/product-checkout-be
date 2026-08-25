@@ -14,7 +14,7 @@ import {
 } from '../../domain/ports';
 import { DomainError, err, ok, Result } from '../../domain/result';
 import { FEES_CONFIG, FeesConfig } from '../../infrastructure/config/fees';
-import { isUuid } from '../validation';
+import { requireUuid } from '../validation';
 
 export type CreatePendingTransactionCommand = {
   productId: string;
@@ -41,14 +41,17 @@ export class CreatePendingTransactionUseCase {
   async execute(
     command: CreatePendingTransactionCommand,
   ): Promise<Result<Transaction>> {
-    if (!isUuid(command.productId)) {
-      return err(DomainError.validation('productId must be a valid UUID'));
+    const productIdResult = requireUuid(command.productId, 'productId');
+    if (!productIdResult.ok) {
+      return productIdResult;
     }
-    if (!isUuid(command.customerId)) {
-      return err(DomainError.validation('customerId must be a valid UUID'));
+    const customerIdResult = requireUuid(command.customerId, 'customerId');
+    if (!customerIdResult.ok) {
+      return customerIdResult;
     }
-    if (!isUuid(command.deliveryId)) {
-      return err(DomainError.validation('deliveryId must be a valid UUID'));
+    const deliveryIdResult = requireUuid(command.deliveryId, 'deliveryId');
+    if (!deliveryIdResult.ok) {
+      return deliveryIdResult;
     }
 
     const quantity = Number(command.quantity);
@@ -56,7 +59,7 @@ export class CreatePendingTransactionUseCase {
       return err(DomainError.validation('quantity must be a positive integer'));
     }
 
-    const product = await this.products.findById(command.productId);
+    const product = await this.products.findById(productIdResult.value);
     if (!product) {
       return err(DomainError.notFound('product not found'));
     }
@@ -68,16 +71,16 @@ export class CreatePendingTransactionUseCase {
       );
     }
 
-    const customer = await this.customers.findById(command.customerId);
+    const customer = await this.customers.findById(customerIdResult.value);
     if (!customer) {
       return err(DomainError.notFound('customer not found'));
     }
 
-    const delivery = await this.deliveries.findById(command.deliveryId);
+    const delivery = await this.deliveries.findById(deliveryIdResult.value);
     if (!delivery) {
       return err(DomainError.notFound('delivery not found'));
     }
-    if (delivery.customerId !== command.customerId) {
+    if (delivery.customerId !== customerIdResult.value) {
       return err(
         DomainError.validation('delivery does not belong to customer'),
       );
@@ -113,11 +116,12 @@ export class GetTransactionUseCase {
   ) {}
 
   async execute(id: string): Promise<Result<Transaction>> {
-    if (!isUuid(id)) {
-      return err(DomainError.validation('transaction id must be a valid UUID'));
+    const idResult = requireUuid(id, 'transaction id');
+    if (!idResult.ok) {
+      return idResult;
     }
 
-    const transaction = await this.transactions.findById(id);
+    const transaction = await this.transactions.findById(idResult.value);
     if (!transaction) {
       return err(DomainError.notFound('transaction not found'));
     }

@@ -5,7 +5,7 @@ import {
   PRODUCT_REPOSITORY,
   ProductRepository,
 } from '../../domain/ports';
-import { isUuid } from '../validation';
+import { requireUuid } from '../validation';
 
 @Injectable()
 export class ListProductsUseCase {
@@ -27,11 +27,12 @@ export class GetProductUseCase {
   ) {}
 
   async execute(id: string): Promise<Result<Product>> {
-    if (!isUuid(id)) {
-      return err(DomainError.validation('product id must be a valid UUID'));
+    const idResult = requireUuid(id, 'product id');
+    if (!idResult.ok) {
+      return idResult;
     }
 
-    const product = await this.products.findById(id);
+    const product = await this.products.findById(idResult.value);
     if (!product) {
       return err(DomainError.notFound('product not found'));
     }

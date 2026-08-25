@@ -57,6 +57,54 @@ type TransactionRow = {
   currency: string;
 };
 
+function mapProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    price: parseMoney(row.price),
+    stock: row.stock,
+    imageUrl: row.image_url,
+  };
+}
+
+function mapCustomer(row: CustomerRow): Customer {
+  return {
+    id: row.id,
+    email: row.email,
+    fullName: row.full_name,
+    phone: row.phone,
+  };
+}
+
+function mapDelivery(row: DeliveryRow): Delivery {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    address: row.address,
+    city: row.city,
+    region: row.region,
+    postalCode: row.postal_code,
+  };
+}
+
+function mapTransaction(row: TransactionRow): Transaction {
+  return {
+    id: row.id,
+    reference: row.reference,
+    status: row.status,
+    productId: row.product_id,
+    customerId: row.customer_id,
+    deliveryId: row.delivery_id,
+    quantity: row.quantity,
+    amount: parseMoney(row.amount),
+    baseFee: parseMoney(row.base_fee),
+    deliveryFee: parseMoney(row.delivery_fee),
+    total: parseMoney(row.total),
+    currency: row.currency,
+  };
+}
+
 export class PgProductRepository implements ProductRepository {
   constructor(private readonly pool: Pool) {}
 
@@ -67,16 +115,7 @@ export class PgProductRepository implements ProductRepository {
       [id],
     );
     const row = result.rows[0];
-    return row
-      ? {
-          id: row.id,
-          name: row.name,
-          description: row.description,
-          price: parseMoney(row.price),
-          stock: row.stock,
-          imageUrl: row.image_url,
-        }
-      : null;
+    return row ? mapProduct(row) : null;
   }
 
   async list(): Promise<Product[]> {
@@ -84,14 +123,7 @@ export class PgProductRepository implements ProductRepository {
       `SELECT id, name, description, price, stock, image_url
        FROM products ORDER BY created_at ASC`,
     );
-    return result.rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      price: parseMoney(row.price),
-      stock: row.stock,
-      imageUrl: row.image_url,
-    }));
+    return result.rows.map(mapProduct);
   }
 }
 
@@ -104,14 +136,7 @@ export class PgCustomerRepository implements CustomerRepository {
       [id],
     );
     const row = result.rows[0];
-    return row
-      ? {
-          id: row.id,
-          email: row.email,
-          fullName: row.full_name,
-          phone: row.phone,
-        }
-      : null;
+    return row ? mapCustomer(row) : null;
   }
 
   async upsertByEmail(input: UpsertCustomerInput): Promise<Customer> {
@@ -125,13 +150,7 @@ export class PgCustomerRepository implements CustomerRepository {
        RETURNING id, email, full_name, phone`,
       [input.email, input.fullName, input.phone],
     );
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      email: row.email,
-      fullName: row.full_name,
-      phone: row.phone,
-    };
+    return mapCustomer(result.rows[0]);
   }
 }
 
@@ -145,16 +164,7 @@ export class PgDeliveryRepository implements DeliveryRepository {
       [id],
     );
     const row = result.rows[0];
-    return row
-      ? {
-          id: row.id,
-          customerId: row.customer_id,
-          address: row.address,
-          city: row.city,
-          region: row.region,
-          postalCode: row.postal_code,
-        }
-      : null;
+    return row ? mapDelivery(row) : null;
   }
 
   async create(input: CreateDeliveryInput): Promise<Delivery> {
@@ -170,15 +180,7 @@ export class PgDeliveryRepository implements DeliveryRepository {
         input.postalCode,
       ],
     );
-    const row = result.rows[0];
-    return {
-      id: row.id,
-      customerId: row.customer_id,
-      address: row.address,
-      city: row.city,
-      region: row.region,
-      postalCode: row.postal_code,
-    };
+    return mapDelivery(result.rows[0]);
   }
 }
 
@@ -224,21 +226,4 @@ export class PgTransactionRepository implements TransactionRepository {
     );
     return mapTransaction(result.rows[0]);
   }
-}
-
-function mapTransaction(row: TransactionRow): Transaction {
-  return {
-    id: row.id,
-    reference: row.reference,
-    status: row.status,
-    productId: row.product_id,
-    customerId: row.customer_id,
-    deliveryId: row.delivery_id,
-    quantity: row.quantity,
-    amount: parseMoney(row.amount),
-    baseFee: parseMoney(row.base_fee),
-    deliveryFee: parseMoney(row.delivery_fee),
-    total: parseMoney(row.total),
-    currency: row.currency,
-  };
 }
