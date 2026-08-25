@@ -2,24 +2,34 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "product-checkout-be",
-    "description": "Core checkout API: health, products, customers, deliveries, PENDING transactions.\n\n1. Set `baseUrl` (default http://localhost:3000).\n2. Run **List products** and copy a product `id` into `productId` (or use the Tests script).\n3. Run **Upsert customer** → **Create delivery** → **Create PENDING transaction** in order.\n4. Scripts save `customerId`, `deliveryId`, and `transactionId` when possible.",
+    "description": "Core checkout API: health, products, customers, deliveries, PENDING transactions.\n\n1. Set `baseUrl` and `apiKey` (same as API_KEY env).\n2. Run **List products** (saves productId).\n3. Run **Upsert customer** → **Create delivery** → **Create PENDING transaction** in order.\n4. Scripts save customerId, deliveryId, and transactionId when possible.\n\nProtected routes require header `x-api-key`. `/health` is open.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "apiKey", "value": "" },
     { "key": "productId", "value": "" },
     { "key": "customerId", "value": "" },
     { "key": "deliveryId", "value": "" },
     { "key": "transactionId", "value": "" }
   ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "x-api-key", "type": "string" },
+      { "key": "value", "value": "{{apiKey}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
   "item": [
     {
       "name": "Health",
       "request": {
+        "auth": { "type": "noauth" },
         "method": "GET",
         "header": [],
         "url": "{{baseUrl}}/health",
-        "description": "Liveness check."
+        "description": "Liveness check (no API key required)."
       }
     },
     {
