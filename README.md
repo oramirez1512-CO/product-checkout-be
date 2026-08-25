@@ -18,6 +18,20 @@ src/
 
 Controllers stay thin. Use cases own the flow. Adapters talk to the DB and the payment provider.
 
+## Environment
+
+Copy `.env.example` → `.env` and fill in real values locally (or set them in Vercel). Never commit `.env`.
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Supabase Postgres connection string |
+| `PAYMENT_*` | Sandbox payment provider keys / URL |
+| `BASE_FEE` / `DELIVERY_FEE` | Fixed fees in COP (`numeric` style, e.g. `3500.00`) |
+| `CURRENCY` | Default `COP` |
+| `CORS_ORIGIN` | Frontend origin |
+
+Defaults for fees also live in `src/infrastructure/config/fees.ts` (`3500.00` base, `10000.00` delivery). Env wins when wired at bootstrap.
+
 ## Database
 
 Postgres on Supabase. Money uses `numeric(12, 2)` (e.g. `products.price`), not integer cents.
@@ -42,4 +56,4 @@ A transaction always references product, customer, and delivery. Amounts (`amoun
 
 ## Status
 
-Folder scaffold + SQL migrations ready. Nest bootstrap and endpoints come next.
+Phase 0 done: scaffold, migrations, env example, agreed fees. Nest bootstrap and endpoints come next.
