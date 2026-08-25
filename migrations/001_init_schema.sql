@@ -1,6 +1,3 @@
--- Manual migration for Supabase SQL Editor
--- Run once against the project database.
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TYPE transaction_status AS ENUM (
