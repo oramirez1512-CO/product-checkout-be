@@ -25,10 +25,13 @@ Copy `.env.example` → `.env` and fill in real values locally (or set them in V
 | Variable | Purpose |
 |----------|---------|
 | `DATABASE_URL` | Supabase Postgres connection string |
+| `API_KEY` | Shared secret; clients must send header `x-api-key` (except `/health`) |
 | `PAYMENT_*` | Sandbox payment provider keys / URL |
 | `BASE_FEE` / `DELIVERY_FEE` | Fixed fees in COP (`numeric` style, e.g. `3500.00`) |
 | `CURRENCY` | Default `COP` |
 | `CORS_ORIGIN` | Frontend origin |
+
+Generate a local key with `uuidgen` and put it in `.env` (same value in Vercel). Never commit the real key.
 
 Defaults for fees also live in `src/infrastructure/config/fees.ts` (`3500.00` base, `10000.00` delivery). Env wins when wired at bootstrap.
 
@@ -104,7 +107,21 @@ API examples live under `docs/`:
 |------|-------------|
 | [`docs/product-checkout-be.postman_collection.json`](docs/product-checkout-be.postman_collection.json) | Postman collection (health, products, customers, deliveries, transactions) |
 
-Import the JSON in Postman (**Import → Upload Files**). Collection variables: `baseUrl` (default `http://localhost:3000`), `productId`, `customerId`, `deliveryId`, `transactionId`. Run requests in order; tests scripts fill the ids when possible.
+Import the JSON in Postman (**Import → Upload Files**). Collection variables: `baseUrl` (default `http://localhost:3000`), `apiKey` (same as `API_KEY`), `productId`, `customerId`, `deliveryId`, `transactionId`. Run requests in order; tests scripts fill the ids when possible. Protected routes need header `x-api-key`.
+
+## Security
+
+Aligned with the brief’s security bonus (HTTPS + headers + careful handling of sensitive data):
+
+| Measure | How |
+|---------|-----|
+| HTTPS | Provided by Vercel in production |
+| Security headers | [`helmet`](https://helmetjs.github.io/) in `src/main.ts` (e.g. `X-Content-Type-Options: nosniff`, `X-Frame-Options` / frameguard, `Referrer-Policy`, etc.) |
+| API access | Shared secret `API_KEY` via request header `x-api-key` (see `ApiKeyValidator`). `/health` stays open for probes |
+| Card data | PAN/CVV are never stored; only optional brand / last four later for UI |
+| Totals | Fees and amounts are calculated on the server |
+
+CSP is left off by default so a JSON API is not blocked by browser CSP meant for HTML apps. CORS is restricted to `CORS_ORIGIN`.
 
 ## Status
 
@@ -112,4 +129,4 @@ Phase 0 done: scaffold, migrations, env example, agreed fees.
 
 Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok" }`.
 
-Phase core-api (`feature/be-core-api`): products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases.
+Phase core-api (`feature/be-core-api`): products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases. API key + Helmet headers.

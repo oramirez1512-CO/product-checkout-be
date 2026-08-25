@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import {
   CreateDeliveryUseCase,
@@ -14,6 +15,7 @@ import {
 } from './application/use-cases/transactions.use-cases';
 import { feesConfigProvider } from './infrastructure/config/fees';
 import { persistenceProviders } from './infrastructure/persistence/postgres';
+import { ApiKeyValidator } from './presentation/auth/api-key-validator';
 import { CheckoutController } from './presentation/controllers/checkout.controller';
 import { HealthController } from './presentation/controllers/health.controller';
 import { ProductsController } from './presentation/controllers/products.controller';
@@ -34,6 +36,7 @@ import { TransactionsController } from './presentation/controllers/transactions.
   providers: [
     ...persistenceProviders,
     feesConfigProvider(),
+    { provide: APP_GUARD, useClass: ApiKeyValidator },
     ListProductsUseCase,
     GetProductUseCase,
     UpsertCustomerUseCase,
