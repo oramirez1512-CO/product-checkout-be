@@ -4,6 +4,7 @@
 /build
 /tmp
 /coverage
+*.tsbuildinfo
 
 # Logs
 logs

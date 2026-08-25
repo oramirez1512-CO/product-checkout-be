@@ -1,0 +1,156 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "product-checkout-be",
+    "description": "Core checkout API: health, products, customers, deliveries, PENDING transactions.\n\n1. Set `baseUrl` (default http://localhost:3000).\n2. Run **List products** and copy a product `id` into `productId` (or use the Tests script).\n3. Run **Upsert customer** → **Create delivery** → **Create PENDING transaction** in order.\n4. Scripts save `customerId`, `deliveryId`, and `transactionId` when possible.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "productId", "value": "" },
+    { "key": "customerId", "value": "" },
+    { "key": "deliveryId", "value": "" },
+    { "key": "transactionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health",
+        "description": "Liveness check."
+      }
+    },
+    {
+      "name": "List products",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  if (Array.isArray(body) && body.length > 0 && body[0].id) {",
+              "    pm.collectionVariables.set('productId', body[0].id);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/products",
+        "description": "List catalog products and stock. Saves first product id to `productId`."
+      }
+    },
+    {
+      "name": "Get product by id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/products/{{productId}}",
+        "description": "Get a single product by UUID."
+      }
+    },
+    {
+      "name": "Upsert customer",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  if (body.id) pm.collectionVariables.set('customerId', body.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"fullName\": \"Ada Buyer\",\n  \"phone\": \"3001234567\"\n}"
+        },
+        "url": "{{baseUrl}}/customers",
+        "description": "Upsert customer by email. Saves `customerId`."
+      }
+    },
+    {
+      "name": "Create delivery",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  if (body.id) pm.collectionVariables.set('deliveryId', body.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"address\": \"Calle 1 #2-3\",\n  \"city\": \"Bogota\",\n  \"region\": \"Cundinamarca\",\n  \"postalCode\": \"110111\"\n}"
+        },
+        "url": "{{baseUrl}}/deliveries",
+        "description": "Create delivery for a customer. Saves `deliveryId`."
+      }
+    },
+    {
+      "name": "Create PENDING transaction",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  if (body.id) pm.collectionVariables.set('transactionId', body.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"customerId\": \"{{customerId}}\",\n  \"deliveryId\": \"{{deliveryId}}\",\n  \"quantity\": 1\n}"
+        },
+        "url": "{{baseUrl}}/transactions",
+        "description": "Create PENDING transaction with server-side fees. Saves `transactionId`."
+      }
+    },
+    {
+      "name": "Get transaction by id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/transactions/{{transactionId}}",
+        "description": "Get transaction status (useful for UI refresh recovery)."
+      }
+    }
+  ]
+}
