@@ -54,6 +54,36 @@ Card PAN/CVV are never stored. Optional `card_brand` / `card_last_four` only for
 
 A transaction always references product, customer, and delivery. Amounts (`amount`, `base_fee`, `delivery_fee`, `total`) are calculated in the API.
 
+## Run locally
+
+Prerequisites: Node.js 20+, npm, and a Postgres database (Supabase) with the migrations applied.
+
+```bash
+# 1. Env
+cp .env.example .env
+# edit .env — at least DATABASE_URL and CORS_ORIGIN
+
+# 2. Install
+npm install
+
+# 3. Dev server (watch mode)
+npm run start:dev
+```
+
+| Command | Description |
+|---------|-------------|
+| `npm run start:dev` | Nest in watch mode (default for local work) |
+| `npm run start` | Nest once, no watch |
+| `npm run build` | Compile to `dist/` |
+| `npm run start:prod` | Run compiled app (`node dist/main`) |
+| `npm test` | Unit tests (Jest) |
+| `npm run test:cov` | Tests + coverage report |
+
+- API: `http://localhost:3000`
+- Health: `http://localhost:3000/health`
+
 ## Status
 
-Phase 0 done: scaffold, migrations, env example, agreed fees. Nest bootstrap and endpoints come next.
+Phase 0 done: scaffold, migrations, env example, agreed fees.
+
+Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok" }`. No business endpoints yet.

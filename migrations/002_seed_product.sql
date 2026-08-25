@@ -1,4 +1,3 @@
--- Optional seed. Run after 001_init_schema.sql.
 
 INSERT INTO products (name, description, price, stock, image_url)
 VALUES (
