@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "name": "product-checkout-be",
-    "description": "Core checkout API: health, products, customers, deliveries, PENDING transactions.\n\n1. Set `baseUrl` and `apiKey` (same as API_KEY env).\n2. Run **List products** (saves productId).\n3. Run **Upsert customer** → **Create delivery** → **Create PENDING transaction** in order.\n4. Scripts save customerId, deliveryId, and transactionId when possible.\n\nProtected routes require header `x-api-key`. `/health` is open.",
+    "description": "Checkout API: health, products, customers, deliveries, transactions, pay.\n\n1. Set `baseUrl` and `apiKey` (same as API_KEY env).\n2. Run **List products** (saves productId).\n3. Run **Upsert customer** → **Create delivery** → **Create PENDING transaction** → **Pay transaction** in order.\n4. Scripts save customerId, deliveryId, and transactionId when possible.\n\nProtected routes require header `x-api-key`. `/health` is open.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -160,6 +160,35 @@
         "header": [],
         "url": "{{baseUrl}}/transactions/{{transactionId}}",
         "description": "Get transaction status (useful for UI refresh recovery)."
+      }
+    },
+    {
+      "name": "Pay transaction",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  pm.test('status is present', () => pm.expect(body.status).to.be.a('string'));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"number\": \"4242424242424242\",\n  \"cvc\": \"123\",\n  \"expMonth\": \"12\",\n  \"expYear\": \"29\",\n  \"cardHolder\": \"Ada Buyer\",\n  \"installments\": 1\n}"
+        },
+        "url": "{{baseUrl}}/transactions/{{transactionId}}/pay",
+        "description": "Charge a PENDING transaction. Uses sandbox-approved test card by default. Re-posting after APPROVED/DECLINED/ERROR is idempotent."
       }
     }
   ]

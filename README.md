@@ -12,7 +12,7 @@ Light hexagonal layout under `src/`:
 src/
   domain/            # entities, ports, Result/ROP errors, money helpers
   application/       # use cases + validation
-  infrastructure/    # persistence (pg), fees config, payment (later)
+  infrastructure/    # persistence (pg), fees config, payment adapters
   presentation/      # controllers, DTOs, HTTP mapping
 ```
 
@@ -85,7 +85,7 @@ npm run start:dev
 - API: `http://localhost:3000`
 - Health: `http://localhost:3000/health`
 
-## Core API (current)
+## Core API
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -95,9 +95,33 @@ npm run start:dev
 | POST | `/customers` | Upsert customer by email |
 | POST | `/deliveries` | Create delivery for a customer |
 | POST | `/transactions` | Create `PENDING` transaction (server-side totals) |
+| POST | `/transactions/:id/pay` | Charge card and finalize transaction |
 | GET | `/transactions/:id` | Transaction status (refresh recovery) |
 
-Fees (`BASE_FEE`, `DELIVERY_FEE`) are applied only on the server. Stock is checked on `POST /transactions` but **not** decremented until a later pay flow.
+Fees (`BASE_FEE`, `DELIVERY_FEE`) are applied only on the server. Stock is checked on `POST /transactions` and again on pay. Stock is decremented only when the provider returns `APPROVED`.
+
+### Pay flow
+
+1. Client creates a `PENDING` transaction (`POST /transactions`).
+2. Client sends card data to `POST /transactions/:id/pay` (PAN/CVV are forwarded to the provider only; never stored).
+3. Server tokenizes/charges via the configured payment adapter (sandbox or fake fallback).
+4. Server persists provider metadata (`providerTransactionId`, `cardBrand`, `cardLastFour`) and final status.
+5. Re-posting `/pay` on a final transaction (`APPROVED`, `DECLINED`, `ERROR`) is **idempotent** — returns the stored row without charging again.
+
+Card body example:
+
+```json
+{
+  "number": "4242424242424242",
+  "cvc": "123",
+  "expMonth": "12",
+  "expYear": "29",
+  "cardHolder": "Ada Buyer",
+  "installments": 1
+}
+```
+
+Without `PAYMENT_*` env vars the app boots with `FakePaymentProvider` (useful for local/tests). Configure sandbox keys in `.env` or Vercel for real charges.
 
 ## Docs
 
@@ -105,7 +129,7 @@ API examples live under `docs/`:
 
 | File | Description |
 |------|-------------|
-| [`docs/product-checkout-be.postman_collection.json`](docs/product-checkout-be.postman_collection.json) | Postman collection (health, products, customers, deliveries, transactions) |
+| [`docs/product-checkout-be.postman_collection.json`](docs/product-checkout-be.postman_collection.json) | Postman collection (health, products, customers, deliveries, transactions, pay) |
 
 Import the JSON in Postman (**Import → Upload Files**). Collection variables: `baseUrl` (default `http://localhost:3000`), `apiKey` (same as `API_KEY`), `productId`, `customerId`, `deliveryId`, `transactionId`. Run requests in order; tests scripts fill the ids when possible. Protected routes need header `x-api-key`.
 
@@ -129,4 +153,6 @@ Phase 0 done: scaffold, migrations, env example, agreed fees.
 
 Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok" }`.
 
-Phase core-api (`feature/be-core-api`): products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases. API key + Helmet headers.
+Phase core-api: products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases. API key + Helmet headers.
+
+Phase payments: payment port + sandbox adapter + `POST /transactions/:id/pay` with idempotent finalize and stock decrement on `APPROVED`.

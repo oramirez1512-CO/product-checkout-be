@@ -12,6 +12,7 @@ import {
   CreatePendingTransactionInput,
   CustomerRepository,
   DeliveryRepository,
+  FinalizePaymentInput,
   ProductRepository,
   TransactionRepository,
   UpsertCustomerInput,
@@ -55,6 +56,9 @@ type TransactionRow = {
   delivery_fee: string;
   total: string;
   currency: string;
+  provider_transaction_id: string | null;
+  card_brand: string | null;
+  card_last_four: string | null;
 };
 
 function mapProduct(row: ProductRow): Product {
@@ -102,8 +106,17 @@ function mapTransaction(row: TransactionRow): Transaction {
     deliveryFee: parseMoney(row.delivery_fee),
     total: parseMoney(row.total),
     currency: row.currency,
+    providerTransactionId: row.provider_transaction_id,
+    cardBrand: row.card_brand,
+    cardLastFour: row.card_last_four,
   };
 }
+
+const TRANSACTION_SELECT = `
+  id, reference, status, product_id, customer_id, delivery_id,
+  quantity, amount, base_fee, delivery_fee, total, currency,
+  provider_transaction_id, card_brand, card_last_four
+`;
 
 export class PgProductRepository implements ProductRepository {
   constructor(private readonly pool: Pool) {}
@@ -189,8 +202,7 @@ export class PgTransactionRepository implements TransactionRepository {
 
   async findById(id: string): Promise<Transaction | null> {
     const result = await this.pool.query<TransactionRow>(
-      `SELECT id, reference, status, product_id, customer_id, delivery_id,
-              quantity, amount, base_fee, delivery_fee, total, currency
+      `SELECT ${TRANSACTION_SELECT}
        FROM transactions WHERE id = $1`,
       [id],
     );
@@ -209,8 +221,7 @@ export class PgTransactionRepository implements TransactionRepository {
          $1, 'PENDING', $2, $3, $4,
          $5, $6, $7, $8, $9, $10
        )
-       RETURNING id, reference, status, product_id, customer_id, delivery_id,
-                 quantity, amount, base_fee, delivery_fee, total, currency`,
+       RETURNING ${TRANSACTION_SELECT}`,
       [
         input.reference,
         input.productId,
@@ -225,5 +236,79 @@ export class PgTransactionRepository implements TransactionRepository {
       ],
     );
     return mapTransaction(result.rows[0]);
+  }
+
+  async finalizePayment(
+    input: FinalizePaymentInput,
+  ): Promise<Transaction | null> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const locked = await client.query<{
+        status: TransactionStatus;
+        product_id: string;
+        quantity: number;
+      }>(
+        `SELECT status, product_id, quantity
+         FROM transactions
+         WHERE id = $1
+         FOR UPDATE`,
+        [input.transactionId],
+      );
+      const current = locked.rows[0];
+      if (!current || current.status !== 'PENDING') {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      if (input.status === 'APPROVED') {
+        const stockUpdate = await client.query(
+          `UPDATE products
+           SET stock = stock - $2, updated_at = now()
+           WHERE id = $1 AND stock >= $2`,
+          [current.product_id, current.quantity],
+        );
+        if (stockUpdate.rowCount === 0) {
+          await client.query('ROLLBACK');
+          throw new Error('insufficient stock while finalizing payment');
+        }
+      }
+
+      const updated = await client.query<TransactionRow>(
+        `UPDATE transactions
+         SET status = $2,
+             provider_transaction_id = $3,
+             provider_status = $4,
+             card_brand = $5,
+             card_last_four = $6,
+             raw_response = $7::jsonb,
+             updated_at = now()
+         WHERE id = $1 AND status = 'PENDING'
+         RETURNING ${TRANSACTION_SELECT}`,
+        [
+          input.transactionId,
+          input.status,
+          input.providerTransactionId,
+          input.providerStatus,
+          input.cardBrand,
+          input.cardLastFour,
+          JSON.stringify(input.rawResponse ?? null),
+        ],
+      );
+
+      if (updated.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      await client.query('COMMIT');
+      return mapTransaction(updated.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
