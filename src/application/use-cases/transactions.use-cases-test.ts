@@ -16,6 +16,7 @@ import { DomainError } from '../../domain/result';
 import { FeesConfig } from '../../infrastructure/config/fees';
 import {
   CreatePendingTransactionUseCase,
+  GetTransactionUseCase,
   PayTransactionUseCase,
 } from './transactions.use-cases';
 import { PaymentProvider } from '../../domain/ports';
@@ -59,23 +60,41 @@ describe('CreatePendingTransactionUseCase', () => {
   function buildUseCase(overrides?: {
     stock?: number;
     deliveryCustomerId?: string;
+    product?: Product | null;
+    customer?: Customer | null;
+    delivery?: Delivery | null;
   }) {
     const products = {
-      findById: jest.fn(async () => ({
-        ...product,
-        stock: overrides?.stock ?? product.stock,
-      })),
+      findById: jest.fn(async () => {
+        if (overrides && 'product' in overrides) {
+          return overrides.product ?? null;
+        }
+        return {
+          ...product,
+          stock: overrides?.stock ?? product.stock,
+        };
+      }),
       list: jest.fn(async (): Promise<Product[]> => []),
     } satisfies ProductRepository;
     const customers = {
-      findById: jest.fn(async () => customer),
+      findById: jest.fn(async () => {
+        if (overrides && 'customer' in overrides) {
+          return overrides.customer ?? null;
+        }
+        return customer;
+      }),
       upsertByEmail: jest.fn(async () => customer),
     } satisfies CustomerRepository;
     const deliveries = {
-      findById: jest.fn(async () => ({
-        ...delivery,
-        customerId: overrides?.deliveryCustomerId ?? delivery.customerId,
-      })),
+      findById: jest.fn(async () => {
+        if (overrides && 'delivery' in overrides) {
+          return overrides.delivery ?? null;
+        }
+        return {
+          ...delivery,
+          customerId: overrides?.deliveryCustomerId ?? delivery.customerId,
+        };
+      }),
       create: jest.fn(async () => delivery),
     } satisfies DeliveryRepository;
     const transactions = {
@@ -160,6 +179,148 @@ describe('CreatePendingTransactionUseCase', () => {
       );
     }
   });
+
+  it.each([
+    ['quantity below min (0)', 0],
+    ['quantity negative', -1],
+  ])('rejects %s', async (_label, quantity) => {
+    // Arrange
+    const { useCase, transactions } = buildUseCase();
+
+    // Act
+    const result = await useCase.execute({
+      productId,
+      customerId,
+      deliveryId,
+      quantity,
+    });
+
+    // Assert
+    expect(result.ok).toBe(false);
+    expect(transactions.createPending).not.toHaveBeenCalled();
+  });
+
+  it('accepts quantity at stock boundary (stock = quantity)', async () => {
+    // Arrange
+    const { useCase } = buildUseCase({ stock: 2 });
+
+    // Act
+    const result = await useCase.execute({
+      productId,
+      customerId,
+      deliveryId,
+      quantity: 2,
+    });
+
+    // Assert
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects invalid productId uuid', async () => {
+    const { useCase } = buildUseCase();
+    const result = await useCase.execute({
+      productId: 'bad',
+      customerId,
+      deliveryId,
+      quantity: 1,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('returns NOT_FOUND when product missing', async () => {
+    const { useCase } = buildUseCase({ product: null });
+    const result = await useCase.execute({
+      productId,
+      customerId,
+      deliveryId,
+      quantity: 1,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('NOT_FOUND');
+    }
+  });
+
+  it('returns NOT_FOUND when customer missing', async () => {
+    const { useCase } = buildUseCase({ customer: null });
+    const result = await useCase.execute({
+      productId,
+      customerId,
+      deliveryId,
+      quantity: 1,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('returns NOT_FOUND when delivery missing', async () => {
+    const { useCase } = buildUseCase({ delivery: null });
+    const result = await useCase.execute({
+      productId,
+      customerId,
+      deliveryId,
+      quantity: 1,
+    });
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe('GetTransactionUseCase', () => {
+  const transactionId = '44444444-4444-4444-8444-444444444444';
+  const tx: Transaction = {
+    id: transactionId,
+    reference: 'chk_x',
+    status: 'PENDING',
+    productId: '11111111-1111-4111-8111-111111111111',
+    customerId: '22222222-2222-4222-8222-222222222222',
+    deliveryId: '33333333-3333-4333-8333-333333333333',
+    quantity: 1,
+    amount: 1,
+    baseFee: 1,
+    deliveryFee: 1,
+    total: 3,
+    currency: 'COP',
+    providerTransactionId: null,
+    cardBrand: null,
+    cardLastFour: null,
+  };
+
+  it('returns transaction when found', async () => {
+    // Arrange
+    const transactions = {
+      findById: jest.fn(async () => tx),
+      createPending: jest.fn(async () => tx),
+      finalizePayment: jest.fn(async (): Promise<Transaction | null> => null),
+    } satisfies TransactionRepository;
+    const useCase = new GetTransactionUseCase(transactions);
+
+    // Act
+    const result = await useCase.execute(transactionId);
+
+    // Assert
+    expect(result).toEqual({ ok: true, value: tx });
+  });
+
+  it('returns NOT_FOUND when missing', async () => {
+    const transactions = {
+      findById: jest.fn(async (): Promise<Transaction | null> => null),
+      createPending: jest.fn(async () => tx),
+      finalizePayment: jest.fn(async (): Promise<Transaction | null> => null),
+    } satisfies TransactionRepository;
+    const useCase = new GetTransactionUseCase(transactions);
+    const result = await useCase.execute(transactionId);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects invalid uuid', async () => {
+    const transactions = {
+      findById: jest.fn(async (): Promise<Transaction | null> => null),
+      createPending: jest.fn(async () => tx),
+      finalizePayment: jest.fn(async (): Promise<Transaction | null> => null),
+    } satisfies TransactionRepository;
+    const useCase = new GetTransactionUseCase(transactions);
+    const result = await useCase.execute('bad');
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe('PayTransactionUseCase', () => {
@@ -207,27 +368,42 @@ describe('PayTransactionUseCase', () => {
     stock?: number;
     chargeStatus?: 'APPROVED' | 'DECLINED';
     finalizeReturns?: Transaction | null;
+    chargeFails?: boolean;
+    finalizeThrows?: boolean;
+    customerMissing?: boolean;
+    productMissing?: boolean;
   }) {
-    const tx = overrides?.transaction ?? pendingTx;
+    const tx: Transaction | null =
+      overrides && 'transaction' in overrides
+        ? (overrides.transaction ?? null)
+        : pendingTx;
     const transactions = {
-      findById: jest.fn(async () => tx),
+      findById: jest.fn(async (): Promise<Transaction | null> => tx),
       createPending: jest.fn(async () => pendingTx),
-      finalizePayment: jest.fn(
-        async (): Promise<Transaction | null> =>
-          overrides?.finalizeReturns ??
-          (overrides?.chargeStatus === 'DECLINED'
-            ? { ...pendingTx, status: 'DECLINED' }
-            : approvedTx),
-      ),
+      finalizePayment: jest.fn(async (): Promise<Transaction | null> => {
+        if (overrides?.finalizeThrows) {
+          throw new Error('insufficient stock while finalizing payment');
+        }
+        if (overrides && 'finalizeReturns' in overrides) {
+          return overrides.finalizeReturns ?? null;
+        }
+        return overrides?.chargeStatus === 'DECLINED'
+          ? { ...pendingTx, status: 'DECLINED' }
+          : approvedTx;
+      }),
     } satisfies TransactionRepository;
 
     const customers = {
-      findById: jest.fn(async () => ({
-        id: customerId,
-        email: 'buyer@example.com',
-        fullName: 'Ada Buyer',
-        phone: null,
-      })),
+      findById: jest.fn(async () =>
+        overrides?.customerMissing
+          ? null
+          : {
+              id: customerId,
+              email: 'buyer@example.com',
+              fullName: 'Ada Buyer',
+              phone: null,
+            },
+      ),
       upsertByEmail: jest.fn(async () => ({
         id: customerId,
         email: 'buyer@example.com',
@@ -237,29 +413,40 @@ describe('PayTransactionUseCase', () => {
     } satisfies CustomerRepository;
 
     const products = {
-      findById: jest.fn(async () => ({
-        id: productId,
-        name: 'Aurora',
-        description: 'Headphones',
-        price: 249900,
-        stock: overrides?.stock ?? 5,
-        imageUrl: null,
-      })),
+      findById: jest.fn(async () =>
+        overrides?.productMissing
+          ? null
+          : {
+              id: productId,
+              name: 'Aurora',
+              description: 'Headphones',
+              price: 249900,
+              stock: overrides?.stock ?? 5,
+              imageUrl: null,
+            },
+      ),
       list: jest.fn(async (): Promise<Product[]> => []),
     } satisfies ProductRepository;
 
     const payments = {
-      charge: jest.fn(async () => ({
-        ok: true as const,
-        value: {
-          providerTransactionId: 'fake_chk_test_ref',
-          status: overrides?.chargeStatus ?? 'APPROVED',
-          statusMessage: null,
-          cardBrand: 'VISA',
-          cardLastFour: '4242',
-          rawResponse: { fake: true },
-        },
-      })),
+      charge: jest.fn(async () =>
+        overrides?.chargeFails
+          ? {
+              ok: false as const,
+              error: DomainError.conflict('provider down'),
+            }
+          : {
+              ok: true as const,
+              value: {
+                providerTransactionId: 'fake_chk_test_ref',
+                status: overrides?.chargeStatus ?? 'APPROVED',
+                statusMessage: null,
+                cardBrand: 'VISA',
+                cardLastFour: '4242',
+                rawResponse: { fake: true },
+              },
+            },
+      ),
     } satisfies PaymentProvider;
 
     return {
@@ -336,5 +523,108 @@ describe('PayTransactionUseCase', () => {
     if (!result.ok) {
       expect(result.error.code).toBe('VALIDATION');
     }
+  });
+
+  it('returns NOT_FOUND when transaction missing', async () => {
+    const { useCase, payments } = buildPayUseCase({ transaction: null });
+    const result = await useCase.execute({ transactionId, card });
+    expect(result.ok).toBe(false);
+    expect(payments.charge).not.toHaveBeenCalled();
+  });
+
+  it('propagates provider charge failure', async () => {
+    const { useCase } = buildPayUseCase({ chargeFails: true });
+    const result = await useCase.execute({ transactionId, card });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('CONFLICT');
+    }
+  });
+
+  it('maps finalizePayment throw to CONFLICT', async () => {
+    const { useCase } = buildPayUseCase({ finalizeThrows: true });
+    const result = await useCase.execute({ transactionId, card });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('CONFLICT');
+    }
+  });
+
+  it('returns latest row when finalize returns null (race)', async () => {
+    // Arrange: first find returns PENDING; after race finalize null → second find APPROVED
+    const transactions = {
+      findById: jest
+        .fn<() => Promise<Transaction | null>>()
+        .mockResolvedValueOnce(pendingTx)
+        .mockResolvedValueOnce(approvedTx),
+      createPending: jest.fn(async () => pendingTx),
+      finalizePayment: jest.fn(async (): Promise<Transaction | null> => null),
+    } satisfies TransactionRepository;
+    const customers = {
+      findById: jest.fn(async () => ({
+        id: customerId,
+        email: 'buyer@example.com',
+        fullName: 'Ada Buyer',
+        phone: null,
+      })),
+      upsertByEmail: jest.fn(async () => ({
+        id: customerId,
+        email: 'buyer@example.com',
+        fullName: 'Ada Buyer',
+        phone: null,
+      })),
+    } satisfies CustomerRepository;
+    const products = {
+      findById: jest.fn(async () => ({
+        id: productId,
+        name: 'Aurora',
+        description: 'Headphones',
+        price: 249900,
+        stock: 5,
+        imageUrl: null,
+      })),
+      list: jest.fn(async (): Promise<Product[]> => []),
+    } satisfies ProductRepository;
+    const payments = {
+      charge: jest.fn(async () => ({
+        ok: true as const,
+        value: {
+          providerTransactionId: 'x',
+          status: 'APPROVED' as const,
+          statusMessage: null,
+          cardBrand: 'VISA',
+          cardLastFour: '4242',
+          rawResponse: {},
+        },
+      })),
+    } satisfies PaymentProvider;
+
+    const useCase = new PayTransactionUseCase(
+      transactions,
+      customers,
+      products,
+      payments,
+    );
+
+    // Act
+    const result = await useCase.execute({ transactionId, card });
+
+    // Assert
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe('APPROVED');
+    }
+  });
+
+  it('returns NOT_FOUND when customer missing on pay', async () => {
+    const { useCase } = buildPayUseCase({ customerMissing: true });
+    const result = await useCase.execute({ transactionId, card });
+    expect(result.ok).toBe(false);
+  });
+
+  it('returns NOT_FOUND when product missing on pay', async () => {
+    const { useCase } = buildPayUseCase({ productMissing: true });
+    const result = await useCase.execute({ transactionId, card });
+    expect(result.ok).toBe(false);
   });
 });

@@ -80,11 +80,25 @@ npm run start:dev
 | `npm run build` | Compile to `dist/` |
 | `npm run start:prod` | Run compiled app (`node dist/main`) |
 | `npm test` | Unit tests (Jest) |
-| `npm run test:cov` | Tests + coverage report |
+| `npm run test:cov` | Tests + coverage report (threshold ≥80% lines/statements) |
 
 - API: `http://localhost:3000`
 - Health: `http://localhost:3000/health`
 
+Coverage HTML: `coverage/lcov-report/index.html` after `npm run test:cov`.
+
+## CI (GitHub Actions)
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+On push/PR to `main` / `develop` / `feature/**`:
+
+1. `npm ci`
+2. `npm run build`
+3. `npm run test:cov` (fails if global coverage drops below the Jest threshold)
+4. Uploads the HTML coverage report as artifact **`coverage-report`**
+
+Open the artifact from the Actions run to inspect the report in the browser.
 ## Core API
 
 | Method | Path | Purpose |
@@ -156,3 +170,5 @@ Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok"
 Phase core-api: products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases. API key + Helmet headers.
 
 Phase payments: payment port + sandbox adapter + `POST /transactions/:id/pay` with idempotent finalize and stock decrement on `APPROVED`.
+
+Phase tests/coverage (`feature/test-n-coverage`): Jest suites with AAA + boundary (min/max) cases; global coverage threshold ≥80%; GitHub Actions CI uploads coverage HTML artifact.
