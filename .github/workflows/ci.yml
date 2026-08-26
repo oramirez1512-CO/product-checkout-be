@@ -26,6 +26,16 @@ jobs:
       - name: Test with coverage
         run: npm run test:cov
 
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: product-checkout-be
+          fail_ci_if_error: false
+          slug: oramirez1512-CO/product-checkout-be
+
       - name: Upload coverage HTML report
         if: always()
         uses: actions/upload-artifact@v4

@@ -1,5 +1,8 @@
 # product-checkout-be
 
+[![CI](https://github.com/oramirez1512-CO/product-checkout-be/actions/workflows/ci.yml/badge.svg)](https://github.com/oramirez1512-CO/product-checkout-be/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/oramirez1512-CO/product-checkout-be/graph/badge.svg)](https://codecov.io/gh/oramirez1512-CO/product-checkout-be)
+
 API for a product checkout flow: stock, customers, deliveries, and payment transactions.
 
 Built with NestJS. Business logic lives here (not in the database). PostgreSQL via Supabase is used only for persistence. Deploy target: Vercel.
@@ -96,9 +99,19 @@ On push/PR to `main` / `develop` / `feature/**`:
 1. `npm ci`
 2. `npm run build`
 3. `npm run test:cov` (fails if global coverage drops below the Jest threshold)
-4. Uploads the HTML coverage report as artifact **`coverage-report`**
+4. Uploads coverage to **[Codecov](https://app.codecov.io/gh/oramirez1512-CO/product-checkout-be)** (visual report + PR comments)
+5. Also uploads the HTML report as artifact **`coverage-report`**
 
-Open the artifact from the Actions run to inspect the report in the browser.
+### One-time Codecov setup (public repo, free)
+
+1. Sign in at [codecov.io](https://codecov.io) with GitHub and grant access to `product-checkout-be`.
+2. Open the repo in Codecov → **Settings** → copy the **Upload token**.
+3. In GitHub: **Settings → Secrets and variables → Actions** → New repository secret:
+   - Name: `CODECOV_TOKEN`
+   - Value: the upload token from Codecov
+4. Push / re-run CI. The badge and dashboard populate after the first successful upload.
+
+Local HTML remains available at `coverage/lcov-report/index.html` after `npm run test:cov`.
 ## Core API
 
 | Method | Path | Purpose |
