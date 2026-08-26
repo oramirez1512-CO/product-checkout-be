@@ -1,5 +1,8 @@
 # product-checkout-be
 
+[![CI](https://github.com/oramirez1512-CO/product-checkout-be/actions/workflows/ci.yml/badge.svg)](https://github.com/oramirez1512-CO/product-checkout-be/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/oramirez1512-CO/product-checkout-be/graph/badge.svg)](https://codecov.io/gh/oramirez1512-CO/product-checkout-be)
+
 API for a product checkout flow: stock, customers, deliveries, and payment transactions.
 
 Built with NestJS. Business logic lives here (not in the database). PostgreSQL via Supabase is used only for persistence. Deploy target: Vercel.
@@ -80,10 +83,74 @@ npm run start:dev
 | `npm run build` | Compile to `dist/` |
 | `npm run start:prod` | Run compiled app (`node dist/main`) |
 | `npm test` | Unit tests (Jest) |
-| `npm run test:cov` | Tests + coverage report |
+| `npm run test:cov` | Tests + coverage report (threshold ≥80% lines/statements) |
 
 - API: `http://localhost:3000`
 - Health: `http://localhost:3000/health`
+
+Coverage HTML: `coverage/lcov-report/index.html` after `npm run test:cov`.
+
+## How to view coverage
+
+There are three ways to inspect coverage. Prefer **Codecov** for reviews; use local HTML while developing.
+
+### 1. Codecov (visual dashboard — public)
+
+Dashboard: [app.codecov.io/gh/oramirez1512-CO/product-checkout-be](https://app.codecov.io/gh/oramirez1512-CO/product-checkout-be)
+
+Anyone can open it while the repository is public. The badge at the top of this README links to the same place.
+
+**What you can see in Codecov**
+
+| View | What it shows |
+|------|----------------|
+| **Overview / sunburst** | Global coverage % for the branch (statements covered vs total). Trend over recent commits. |
+| **File tree** | Coverage broken down by folder (`application/`, `domain/`, `infrastructure/`, `presentation/`, …). Useful to spot weak areas quickly. |
+| **Single file** | Source code with lines highlighted: **green** = covered by at least one test, **red** = not executed, **yellow/partial** = only some branches hit. Click a file to review gaps line by line. |
+| **Commit / commit comparison** | Coverage for a specific SHA, and how % changed vs the previous commit. |
+| **Pull request** | Patch coverage (only lines added/changed in the PR) vs project coverage. Flags drops below the targets in `codecov.yml` (project/patch ~80%). |
+| **PR comment on GitHub** | After CI uploads a report, Codecov comments on the PR with a short summary (project %, patch %, and links back to the full report). |
+
+In short: Codecov answers “are we above 80%?” and “which lines in this PR or file still have no tests?” without downloading HTML.
+
+**One-time setup** (repo owner; free for public repos):
+
+1. Sign in at [codecov.io](https://codecov.io) with GitHub and grant access to `product-checkout-be`.
+2. In Codecov → repo **Settings**, copy the **Upload token**.
+3. In GitHub → **Settings → Secrets and variables → Actions**, create secret:
+   - Name: `CODECOV_TOKEN`
+   - Value: the upload token
+4. Push or re-run the **CI** workflow. After the first successful upload, the badge and dashboard populate.
+
+### 2. Local HTML (Istanbul)
+
+```bash
+npm run test:cov
+open coverage/lcov-report/index.html   # macOS
+```
+
+Browse folders/files and see line hits in the browser. Requires generating the report on your machine (the `coverage/` folder is gitignored).
+
+### 3. GitHub Actions artifact
+
+1. Open the repo on GitHub → **Actions**.
+2. Select the latest **CI** run.
+3. Under **Artifacts**, download **`coverage-report`**.
+4. Unzip and open `index.html` locally.
+
+Same Istanbul HTML as local, produced by CI. GitHub does not render that HTML inside the Actions UI; you open it after download.
+
+## CI (GitHub Actions)
+
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+On push/PR to `main` / `develop` / `feature/**`:
+
+1. `npm ci`
+2. `npm run build`
+3. `npm run test:cov` (fails if global coverage drops below the Jest threshold: ≥80% statements/lines/functions, ≥70% branches)
+4. Uploads `coverage/lcov.info` to Codecov
+5. Uploads the HTML report as artifact **`coverage-report`**
 
 ## Core API
 
@@ -156,3 +223,5 @@ Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok"
 Phase core-api: products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases. API key + Helmet headers.
 
 Phase payments: payment port + sandbox adapter + `POST /transactions/:id/pay` with idempotent finalize and stock decrement on `APPROVED`.
+
+Phase tests/coverage (`feature/test-n-coverage`): Jest suites with AAA + boundary (min/max) cases; global coverage threshold ≥80%; GitHub Actions CI uploads coverage HTML artifact.
