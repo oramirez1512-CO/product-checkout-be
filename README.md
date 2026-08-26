@@ -32,7 +32,7 @@ Copy `.env.example` → `.env` and fill in real values locally (or set them in V
 | `PAYMENT_*` | Sandbox payment provider keys / URL |
 | `BASE_FEE` / `DELIVERY_FEE` | Fixed fees in COP (`numeric` style, e.g. `3500.00`) |
 | `CURRENCY` | Default `COP` |
-| `CORS_ORIGIN` | Frontend origin |
+| `CORS_ORIGIN` | Frontend origin(s); comma-separated; `*` wildcards OK. Prefer `http://localhost:5173,https://product-checkout-fe*.vercel.app` so only this FE’s Vercel hosts are allowed |
 
 Generate a local key with `uuidgen` and put it in `.env` (same value in Vercel). Never commit the real key.
 
@@ -212,7 +212,7 @@ Aligned with the brief’s security bonus (HTTPS + headers + careful handling of
 | Card data | PAN/CVV are never stored; only optional brand / last four later for UI |
 | Totals | Fees and amounts are calculated on the server |
 
-CSP is left off by default so a JSON API is not blocked by browser CSP meant for HTML apps. CORS is restricted to `CORS_ORIGIN`.
+CSP is left off by default so a JSON API is not blocked by browser CSP meant for HTML apps. CORS is restricted to `CORS_ORIGIN` (exact origins and/or `*` patterns). For Vercel Previews use `https://product-checkout-fe*.vercel.app` so the host must start with `product-checkout-fe` and end with `.vercel.app` (browser `Origin` has no path).
 
 ## Status
 
