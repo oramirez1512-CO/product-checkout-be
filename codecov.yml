@@ -1,0 +1,15 @@
+# Codecov config — visual coverage on https://app.codecov.io/gh/oramirez1512-CO/product-checkout-be
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+    patch:
+      default:
+        target: 80%
+
+comment:
+  layout: 'header, diff, flags, files'
+  behavior: default
+  require_changes: false

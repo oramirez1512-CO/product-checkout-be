@@ -3,12 +3,16 @@ import {
   Delivery,
   Product,
   Transaction,
+  TransactionStatus,
 } from './entities';
+import { ChargeInput, ChargeResult } from './payment';
+import { Result } from './result';
 
 export const PRODUCT_REPOSITORY = Symbol('PRODUCT_REPOSITORY');
 export const CUSTOMER_REPOSITORY = Symbol('CUSTOMER_REPOSITORY');
 export const DELIVERY_REPOSITORY = Symbol('DELIVERY_REPOSITORY');
 export const TRANSACTION_REPOSITORY = Symbol('TRANSACTION_REPOSITORY');
+export const PAYMENT_PROVIDER = Symbol('PAYMENT_PROVIDER');
 
 export interface ProductRepository {
   findById(id: string): Promise<Product | null>;
@@ -52,7 +56,27 @@ export type CreatePendingTransactionInput = {
   currency: string;
 };
 
+export type FinalizePaymentInput = {
+  transactionId: string;
+  status: TransactionStatus;
+  providerTransactionId: string;
+  providerStatus: string;
+  cardBrand: string | null;
+  cardLastFour: string | null;
+  rawResponse: unknown;
+};
+
 export interface TransactionRepository {
   findById(id: string): Promise<Transaction | null>;
   createPending(input: CreatePendingTransactionInput): Promise<Transaction>;
+  /**
+   * Atomically moves a PENDING transaction to a final (or still-PENDING) state.
+   * Decrements product stock when status is APPROVED.
+   * Returns null when the row is no longer PENDING (race / already finalized).
+   */
+  finalizePayment(input: FinalizePaymentInput): Promise<Transaction | null>;
+}
+
+export interface PaymentProvider {
+  charge(input: ChargeInput): Promise<Result<ChargeResult>>;
 }

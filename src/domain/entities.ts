@@ -42,4 +42,11 @@ export type Transaction = {
   deliveryFee: number;
   total: number;
   currency: string;
+  providerTransactionId: string | null;
+  cardBrand: string | null;
+  cardLastFour: string | null;
 };
+
+export function isFinalTransactionStatus(status: TransactionStatus): boolean {
+  return status === 'APPROVED' || status === 'DECLINED' || status === 'ERROR';
+}

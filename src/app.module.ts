@@ -12,8 +12,10 @@ import {
 import {
   CreatePendingTransactionUseCase,
   GetTransactionUseCase,
+  PayTransactionUseCase,
 } from './application/use-cases/transactions.use-cases';
 import { feesConfigProvider } from './infrastructure/config/fees';
+import { paymentProviders } from './infrastructure/payment/payment.providers';
 import { persistenceProviders } from './infrastructure/persistence/postgres';
 import { ApiKeyValidator } from './presentation/auth/api-key-validator';
 import { CheckoutController } from './presentation/controllers/checkout.controller';
@@ -35,6 +37,7 @@ import { TransactionsController } from './presentation/controllers/transactions.
   ],
   providers: [
     ...persistenceProviders,
+    ...paymentProviders(),
     feesConfigProvider(),
     { provide: APP_GUARD, useClass: ApiKeyValidator },
     ListProductsUseCase,
@@ -42,6 +45,7 @@ import { TransactionsController } from './presentation/controllers/transactions.
     UpsertCustomerUseCase,
     CreateDeliveryUseCase,
     CreatePendingTransactionUseCase,
+    PayTransactionUseCase,
     GetTransactionUseCase,
   ],
 })

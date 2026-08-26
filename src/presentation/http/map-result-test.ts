@@ -1,5 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DomainError } from '../../domain/result';
 import { mapDomainError, unwrapResult } from './map-result';
 
@@ -12,6 +16,11 @@ describe('map-result', () => {
   it('maps VALIDATION to BadRequestException', () => {
     const error = mapDomainError(DomainError.validation('bad'));
     expect(error).toBeInstanceOf(BadRequestException);
+  });
+
+  it('maps CONFLICT to ConflictException', () => {
+    const error = mapDomainError(DomainError.conflict('busy'));
+    expect(error).toBeInstanceOf(ConflictException);
   });
 
   it('unwraps ok results', () => {
