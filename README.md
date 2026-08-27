@@ -213,15 +213,3 @@ Aligned with the brief’s security bonus (HTTPS + headers + careful handling of
 | Totals | Fees and amounts are calculated on the server |
 
 CSP is left off by default so a JSON API is not blocked by browser CSP meant for HTML apps. CORS is restricted to `CORS_ORIGIN` (exact origins and/or `*` patterns). For Vercel Previews use `https://product-checkout-fe*.vercel.app` so the host must start with `product-checkout-fe` and end with `.vercel.app` (browser `Origin` has no path).
-
-## Status
-
-Phase 0 done: scaffold, migrations, env example, agreed fees.
-
-Phase 1 (bootstrap): Nest app boots locally. `GET /health` → `{ "status": "ok" }`.
-
-Phase core-api: products, customers, deliveries, PENDING transactions with hexagonal + ROP use cases. API key + Helmet headers.
-
-Phase payments: payment port + sandbox adapter + `POST /transactions/:id/pay` with idempotent finalize and stock decrement on `APPROVED`.
-
-Phase tests/coverage (`feature/test-n-coverage`): Jest suites with AAA + boundary (min/max) cases; global coverage threshold ≥80%; GitHub Actions CI uploads coverage HTML artifact.
